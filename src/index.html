@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pwnage Hub</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg: #0d0d0f;
+      --surface: #18181b;
+      --surface2: #222226;
+      --surface3: #2a2a2f;
+      --accent: #00d4aa;
+      --accent-dim: rgba(0, 212, 170, 0.15);
+      --accent-hover: #00e8bb;
+      --text: #e4e4e7;
+      --text-dim: #71717a;
+      --text-mid: #a1a1aa;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --border: rgba(255,255,255,0.06);
+      --radius: 8px;
+    }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    /* Title bar */
+    .titlebar {
+      height: 46px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 12px;
+      -webkit-app-region: drag;
+      flex-shrink: 0;
+    }
+    .titlebar-logo {
+      width: 22px;
+      height: 22px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      color: #000;
+    }
+    .titlebar h1 {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+    .titlebar .device-tag {
+      font-size: 11px;
+      color: var(--text-dim);
+      background: var(--surface2);
+      padding: 3px 10px;
+      border-radius: 10px;
+    }
+    .titlebar .device-tag.connected {
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+    #connect-btn {
+      margin-left: auto;
+      -webkit-app-region: no-drag;
+      background: transparent;
+      color: var(--accent);
+      border: 1px solid rgba(0,212,170,0.3);
+      padding: 6px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    #connect-btn:hover { background: var(--accent-dim); border-color: var(--accent); }
+    #connect-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* Main layout */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 56px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 12px 0;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .nav-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius);
+      border: none;
+      background: transparent;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      position: relative;
+    }
+    .nav-btn:hover { background: var(--surface2); color: var(--text-mid); }
+    .nav-btn.active {
+      background: var(--accent-dim);
+      color: var(--accent);
+    }
+    .nav-btn.active::before {
+      content: '';
+      position: absolute;
+      left: -8px;
+      width: 3px;
+      height: 20px;
+      background: var(--accent);
+      border-radius: 0 3px 3px 0;
+    }
+    .nav-btn svg { width: 20px; height: 20px; }
+    .nav-spacer { flex: 1; }
+
+    /* Content area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 32px;
+    }
+    .content-area::-webkit-scrollbar { width: 6px; }
+    .content-area::-webkit-scrollbar-track { background: transparent; }
+    .content-area::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+
+    /* Tab pages */
+    .tab-page { display: none; }
+    .tab-page.active { display: block; }
+
+    /* Page header */
+    .page-header {
+      margin-bottom: 24px;
+    }
+    .page-header h2 {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .page-header p {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 16px;
+    }
+
+    /* Device info grid */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 16px;
+    }
+    .info-item {
+      background: var(--surface2);
+      padding: 16px;
+      border-radius: var(--radius);
+    }
+    .info-item .label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+    }
+    .info-item .val {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    /* Setting rows */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .setting-row:last-of-type { border-bottom: none; }
+    .setting-row label {
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .setting-desc {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-top: 2px;
+    }
+
+    /* DPI display */
+    .dpi-hero {
+      text-align: center;
+      padding: 20px 0;
+    }
+    .dpi-number {
+      font-size: 64px;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .dpi-label {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-top: 4px;
+    }
+    .dpi-slider-wrap {
+      padding: 16px 0 8px;
+    }
+
+    /* DPI stages */
+    .dpi-stages {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      justify-content: center;
+    }
+    .dpi-stage-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 2px solid var(--surface3);
+      background: var(--surface2);
+      color: var(--text-dim);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .dpi-stage-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+    .dpi-stage-btn:hover { border-color: var(--text-dim); }
+
+    /* Sliders */
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--surface3);
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 8px rgba(0,212,170,0.3);
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 12px rgba(0,212,170,0.5);
+    }
+
+    /* Selects */
+    select, input[type="number"] {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      min-width: 140px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    select:hover, input[type="number"]:hover { border-color: rgba(255,255,255,0.12); }
+    select:focus, input[type="number"]:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+
+    /* Toggles */
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      -webkit-app-region: no-drag;
+      flex-shrink: 0;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .toggle .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: var(--surface3);
+      border-radius: 24px;
+      transition: 0.2s;
+    }
+    .toggle .slider:before {
+      content: "";
+      position: absolute;
+      height: 18px; width: 18px;
+      left: 3px; bottom: 3px;
+      background: var(--text-dim);
+      border-radius: 50%;
+      transition: 0.2s;
+    }
+    .toggle input:checked + .slider { background: var(--accent); }
+    .toggle input:checked + .slider:before { transform: translateX(20px); background: #fff; }
+
+    /* Buttons */
+    .apply-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 10px 28px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 12px;
+      transition: all 0.15s;
+    }
+    .apply-btn:hover { background: var(--accent-hover); }
+    .apply-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* No device state */
+    #no-device {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: var(--text-dim);
+      gap: 12px;
+    }
+    #no-device svg { opacity: 0.3; }
+    #no-device h2 { font-size: 18px; font-weight: 500; color: var(--text-mid); }
+    #no-device p { font-size: 13px; }
+
+    #content { display: none; height: 100%; }
+
+    /* Log */
+    .log-wrap {
+      background: var(--surface);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .log-header {
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .log-clear {
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .log-clear:hover { color: var(--text); }
+    #log {
+      padding: 8px 16px;
+      font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      max-height: 300px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+    #log::-webkit-scrollbar { width: 4px; }
+    #log::-webkit-scrollbar-track { background: transparent; }
+    #log::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+
+    /* Slider row layout */
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      width: 100%;
+    }
+    .slider-group input[type="range"] { flex: 1; }
+    .slider-group .value {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      min-width: 60px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Polling rate buttons */
+    .rate-grid {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .rate-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text-mid);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .rate-btn:hover { border-color: rgba(255,255,255,0.12); color: var(--text); }
+    .rate-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: var(--accent-dim);
+    }
+
+    /* Sleep display */
+    .sleep-display {
+      text-align: center;
+      padding: 8px 0;
+    }
+    .sleep-number {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+    .sleep-unit {
+      font-size: 14px;
+      color: var(--text-dim);
+      margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-logo">P</div>
+    <h1>PWNAGE HUB</h1>
+    <span id="status" class="device-tag">Disconnected</span>
+    <button id="connect-btn">Connect</button>
+  </div>
+
+  <div class="app-body">
+    <nav class="sidebar">
+      <!-- Home -->
+      <button class="nav-btn active" data-tab="home" title="Overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </button>
+      <!-- DPI -->
+      <button class="nav-btn" data-tab="dpi" title="DPI">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m10-10h-4M6 12H2"/><path d="M17.66 6.34l-2.83 2.83m-5.66 5.66l-2.83 2.83m0-11.32l2.83 2.83m5.66 5.66l2.83 2.83"/></svg>
+      </button>
+      <!-- Performance -->
+      <button class="nav-btn" data-tab="performance" title="Performance">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      </button>
+      <!-- Sensor -->
+      <button class="nav-btn" data-tab="sensor" title="Sensor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M15 2v2m-6-2v2m6 16v2m-6-2v2m8-12h2M2 15h2m16-6h2M2 9h2"/></svg>
+      </button>
+      <!-- Power -->
+      <button class="nav-btn" data-tab="power" title="Power">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 11-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+      </button>
+
+      <div class="nav-spacer"></div>
+
+      <!-- Console -->
+      <button class="nav-btn" data-tab="console" title="Console">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+      </button>
+    </nav>
+
+    <div class="content-area">
+      <!-- No device -->
+      <div id="no-device">
+        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 19c-4 0-7-2-9-5 2-3 5-5 9-5s7 2 9 5c-2 3-5 5-9 5z"/><circle cx="12" cy="14" r="3"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+        <h2>No device connected</h2>
+        <p>Click "Connect" to detect your Pwnage mouse.</p>
+      </div>
+
+      <!-- Main content (hidden until connected) -->
+      <div id="content">
+
+        <!-- HOME TAB -->
+        <div class="tab-page active" id="tab-home">
+          <div class="page-header">
+            <h2>Overview</h2>
+            <p>Device information and status</p>
+          </div>
+          <div class="info-grid">
+            <div class="info-item">
+              <div class="label">Device</div>
+              <div class="val" id="info-name">--</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Firmware</div>
+              <div class="val" id="info-firmware">--</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Connection</div>
+              <div class="val" id="info-connection">--</div>
+            </div>
+            <div class="info-item">
+              <div class="label">Sensor</div>
+              <div class="val" id="info-sensor">--</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DPI TAB -->
+        <div class="tab-page" id="tab-dpi">
+          <div class="page-header">
+            <h2>DPI Settings</h2>
+            <p>Sensitivity and DPI stages</p>
+          </div>
+          <div class="card">
+            <div class="dpi-stages" id="dpi-stages-container"></div>
+            <div class="dpi-hero">
+              <div class="dpi-number" id="dpi-value">800</div>
+              <div class="dpi-label">DPI</div>
+            </div>
+            <div class="dpi-slider-wrap">
+              <input type="range" id="dpi-slider" min="100" max="30000" step="50" value="800">
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+              <button class="apply-btn" id="apply-dpi">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- PERFORMANCE TAB -->
+        <div class="tab-page" id="tab-performance">
+          <div class="page-header">
+            <h2>Performance</h2>
+            <p>Polling rate and response tuning</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Polling Rate</div>
+            <div class="rate-grid" id="polling-rate-grid">
+              <button class="rate-btn" data-rate="125">125 Hz</button>
+              <button class="rate-btn" data-rate="250">250 Hz</button>
+              <button class="rate-btn" data-rate="500">500 Hz</button>
+              <button class="rate-btn" data-rate="1000">1000 Hz</button>
+              <button class="rate-btn" data-rate="2000">2000 Hz</button>
+              <button class="rate-btn" data-rate="4000">4000 Hz</button>
+              <button class="rate-btn" data-rate="8000">8000 Hz</button>
+            </div>
+            <!-- Hidden select to keep app.js working -->
+            <select id="polling-rate" style="display:none;">
+              <option value="125">125</option>
+              <option value="250">250</option>
+              <option value="500">500</option>
+              <option value="1000" selected>1000</option>
+              <option value="2000">2000</option>
+              <option value="4000">4000</option>
+              <option value="8000">8000</option>
+            </select>
+            <div style="display:flex; justify-content:flex-end; margin-top:16px;">
+              <button class="apply-btn" id="apply-polling">Apply</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">Debounce</div>
+            <div class="setting-row">
+              <div>
+                <label>Debounce Time</label>
+                <div class="setting-desc">Click response delay (ms)</div>
+              </div>
+              <input type="number" id="debounce-time" min="0" max="20" value="4" style="width:80px; min-width:80px;">
+            </div>
+          </div>
+        </div>
+
+        <!-- SENSOR TAB -->
+        <div class="tab-page" id="tab-sensor">
+          <div class="page-header">
+            <h2>Sensor</h2>
+            <p>Sensor behavior and tracking</p>
+          </div>
+          <div class="card">
+            <div class="setting-row">
+              <div>
+                <label>Lift-Off Distance</label>
+                <div class="setting-desc">Height at which tracking stops</div>
+              </div>
+              <select id="lod-setting">
+                <option value="1">1mm (Low)</option>
+                <option value="2">2mm (High)</option>
+              </select>
+            </div>
+            <div class="setting-row">
+              <div>
+                <label>Angle Snapping</label>
+                <div class="setting-desc">Straighten cursor movement</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="angle-snap">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div class="setting-row">
+              <div>
+                <label>Motion Sync</label>
+                <div class="setting-desc">Sync sensor to polling rate</div>
+              </div>
+              <label class="toggle">
+                <input type="checkbox" id="motion-sync">
+                <span class="slider"></span>
+              </label>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+              <button class="apply-btn" id="apply-sensor">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- POWER TAB -->
+        <div class="tab-page" id="tab-power">
+          <div class="page-header">
+            <h2>Power</h2>
+            <p>Sleep and power management</p>
+          </div>
+          <div class="card">
+            <div class="card-title">Sleep Timeout</div>
+            <div class="sleep-display">
+              <span class="sleep-number" id="sleep-value">120</span>
+              <span class="sleep-unit">seconds</span>
+            </div>
+            <div style="padding: 12px 0;">
+              <input type="range" id="sleep-slider" min="30" max="1800" step="10" value="120">
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:8px;">
+              <button class="apply-btn" id="apply-sleep">Apply</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CONSOLE TAB -->
+        <div class="tab-page" id="tab-console">
+          <div class="page-header">
+            <h2>Console</h2>
+            <p>HID communication log</p>
+          </div>
+          <div class="log-wrap">
+            <div class="log-header">
+              <span>Output</span>
+              <button class="log-clear" id="log-clear">Clear</button>
+            </div>
+            <div id="log"></div>
+          </div>
+        </div>
+
+      </div><!-- /content -->
+    </div><!-- /content-area -->
+  </div><!-- /app-body -->
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
